@@ -1,0 +1,127 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  creationTimestamp: null
+  name: pushgateways.monitoring.coreos.com
+spec:
+  group: monitoring.coreos.com
+  names:
+    kind: Pushgateway
+    listKind: PushgatewayList
+    plural: pushgateways
+    singular: pushgateway
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Pushgateway's Prometheus instance
+      jsonPath: .status.prometheus
+      name: Prometheus
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Pushgateway is the Schema for the pushgateways API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PushgatewaySpec defines the desired state of Pushgateway
+            properties:
+              enableAdminAPI:
+                default: false
+                description: Whether or not to enable Pushgateway admin API Default
+                  is false.
+                type: boolean
+              enableLifecycle:
+                description: Whether or not to enable Pushgateway lifecycle Sets the
+                  --web.enable-lifecycle options
+                type: boolean
+              image:
+                description: Image to use for the Pushgateway. If omitted, default
+                  image defined in the operator environment variable pushgateway-default-base-image
+                type: string
+              injectAsSidecar:
+                default: false
+                description: If set to true, Pushgateway will run as a sidecar container
+                  in the Prometheus instance. Otherwise runs as an independant pod.
+                  Default is false.
+                type: boolean
+              logFormat:
+                description: Sets the log format for the exporter. Must be either
+                  logfmt or json Default is logfmt
+                enum:
+                - logfmt
+                - json
+                type: string
+              logLevel:
+                description: 'Sets the log level for the exporter. Must be one of:
+                  debug,info,warn or error Default is info'
+                enum:
+                - debug
+                - info
+                - warn
+                - error
+                type: string
+              port:
+                description: Port to listen on. Default port is 9091.
+                format: int32
+                type: integer
+              prometheus:
+                description: Prometheus instance to bind to. If left empty, the operator
+                  assumes there's a single Prometheus instance in the same namespace
+                  as the Pushgateway.
+                properties:
+                  name:
+                    description: Prometheus instance name.
+                    type: string
+                  namespace:
+                    description: Prometheus instance namespace. If left empty, current
+                      namespace is used.
+                    type: string
+                required:
+                - name
+                type: object
+              replicas:
+                default: 1
+                description: How many replicas of the Pushgateway to run. This applies
+                  only if InjectAsSidecar is set to false. Default is 1.
+                format: int32
+                type: integer
+              telemetryPath:
+                description: Path to push and expose metrics on. Defaults to /metrics.
+                type: string
+            type: object
+          status:
+            description: PushgatewayStatus defines the observed state of Pushgateway
+            properties:
+              prometheus:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

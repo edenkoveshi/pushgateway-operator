@@ -1,0 +1,11 @@
+kind: Pushgateway
+apiVersion: monitoring.coreos.com/v1alpha1
+metadata: 
+  name: example
+spec:
+  prometheus:
+    name: example
+  port: 3747
+  enableAdminAPI: true
+  replicas: 1
+  

@@ -1,0 +1,7 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: Pushgateway
+metadata:
+  name: pushgateway-sample
+spec:
+  # Add fields here
+  foo: bar

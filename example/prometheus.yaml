@@ -1,0 +1,8 @@
+kind: Prometheus
+apiVersion: monitoring.coreos.com/v1
+metadata: 
+  name: example
+spec: 
+  podMonitorSelector:
+    matchLabels:
+      role: pod-monitor
