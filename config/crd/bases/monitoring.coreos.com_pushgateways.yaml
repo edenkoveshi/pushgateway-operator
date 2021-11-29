@@ -110,12 +110,7 @@ spec:
                   Scheme, HonorLabels and HonorTimestamps Those can be configured
                   in the relevant fields'
                 properties:
-                  metadataOverrides:
-                    description: Override the Service Monitor object metadata New
-                      metadata will be added to auto-generated metadata In case of
-                      a collision, override will take over
-                    type: object
-                  serviceMonitorOverrides:
+                  endpointOverrides:
                     description: ServiceMonitor Endpoint configuration
                     properties:
                       authorization:
@@ -573,6 +568,11 @@ spec:
                             description: Used to verify the hostname for the targets.
                             type: string
                         type: object
+                    type: object
+                  metadataOverrides:
+                    description: Override the Service Monitor object metadata New
+                      metadata will be added to auto-generated metadata In case of
+                      a collision, override will take over
                     type: object
                 type: object
               telemetryPath:

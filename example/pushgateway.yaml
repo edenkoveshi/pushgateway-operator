@@ -11,7 +11,8 @@ spec:
       name: no-override
       labels:
         override: "true"
-    serviceMonitorOverrides:
+    endpointOverrides:
       honorLabels: false #not overriden
+      honorTimestamps: false #not overriden
       interval: 1m #overriden
       scrapeTimeout: 30s

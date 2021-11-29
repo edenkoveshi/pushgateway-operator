@@ -35,9 +35,10 @@ func PushgatewayServiceMonitor(pgw *monitoringv1alpha1.Pushgateway) *monitoringv
 		TODO: Support PodMonitor
 	*/
 	metadata := metav1.ObjectMeta{
-		Name:      ServiceMonitorName(pgw.Name),
-		Namespace: pgw.Namespace,
-		Labels:    labels,
+		Name:            ServiceMonitorName(pgw.Name),
+		Namespace:       pgw.Namespace,
+		Labels:          labels,
+		OwnerReferences: SetOwnerReference(pgw),
 	}
 
 	endpoint := &monitoringv1.Endpoint{}
@@ -52,6 +53,7 @@ func PushgatewayServiceMonitor(pgw *monitoringv1alpha1.Pushgateway) *monitoringv
 		}
 	}
 
+	// Those can't be overriden
 	endpoint.Port = constants.PortName
 	endpoint.Scheme = "http"
 	endpoint.Path = GetTelemetryPathOrDefault(pgw)
@@ -110,10 +112,8 @@ func HandleMatchExpressions(labels map[string]string, matchExp []metav1.LabelSel
 				labels[exp.Key] = "true"
 			}
 		case metav1.LabelSelectorOpDoesNotExist:
-			if _, exists := labels[exp.Key]; exists {
-				// In this case we don't want the key to exist
-				delete(labels, exp.Key)
-			}
+			// In this case we don't want the key to exist
+			delete(labels, exp.Key)
 		}
 	}
 	return labels

@@ -8,6 +8,7 @@ require (
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/go-openapi/validate v0.19.5 // indirect
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.16.4
@@ -23,4 +24,3 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.2
 	sigs.k8s.io/structured-merge-diff/v3 v3.0.0 // indirect
 )
-

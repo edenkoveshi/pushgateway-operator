@@ -278,5 +278,6 @@ func (r *PushgatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&monitoringv1.ServiceMonitor{}).
+		//Watches(&source.Kind{Type: &monitoringv1.Prometheuses{}}, handler.EnqueueRequestsFromMapFunc(r.watchPrometheuses)).
 		Complete(r)
 }
