@@ -5,7 +5,13 @@ metadata:
 spec:
   prometheus:
     name: example
-  port: 3747
-  enableAdminAPI: true
   replicas: 1
-  
+  serviceMonitorOverrides:
+    metadataOverrides: 
+      name: no-override
+      labels:
+        override: "true"
+    serviceMonitorOverrides:
+      honorLabels: false #not overriden
+      interval: 1m #overriden
+      scrapeTimeout: 30s

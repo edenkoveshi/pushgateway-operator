@@ -31,9 +31,10 @@ import (
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringv1alpha1 "github.com/prometheus-operator/pushgateway-operator/api/v1alpha1"
-	"github.com/prometheus-operator/pushgateway-operator/internal/deployment"
-	"github.com/prometheus-operator/pushgateway-operator/internal/helpers"
+	"github.com/prometheus-operator/pushgateway-operator/internal/resources"
+	"github.com/prometheus-operator/pushgateway-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // PushgatewayReconciler reconciles a Pushgateway object
@@ -63,47 +64,66 @@ func (r *PushgatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	err = r.ReconcilePushgateway(instance, ctx)
+	res, err := r.ReconcilePushgateway(instance, ctx)
 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{Requeue: true}, nil
+	return res, nil
 }
 
-func (r *PushgatewayReconciler) ReconcilePushgateway(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) error {
+func (r *PushgatewayReconciler) ReconcilePushgateway(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	prometheus, err := r.GetPrometheus(pgw, ctx)
 	if err != nil {
-		return err
+		return ctrl.Result{}, err
 	}
 
 	if prometheus != nil {
 		pgw.Status.Prometheus = fmt.Sprintf("%s/%s", prometheus.Namespace, prometheus.Name)
+		if prometheus.Spec.ServiceMonitorSelector != nil {
+			pgw.Status.PrometheusServiceMonitorSelector = prometheus.Spec.ServiceMonitorSelector
+		}
 		err := r.Status().Update(ctx, pgw)
 		if err != nil {
-			logger.Error(err, helpers.LogMessage(pgw, "Failed to update status"))
+			logger.Error(err, util.LogMessage(pgw, "Failed to update status"))
 		}
 		logger.Info(fmt.Sprintf("%s/%s set up with Prometheus %s", pgw.Namespace, pgw.Name, pgw.Status.Prometheus))
 	} else {
 		pgw.Status.Prometheus = "N/A"
 		err := r.Status().Update(ctx, pgw)
 		if err != nil {
-			logger.Error(err, helpers.LogMessage(pgw, "Failed to update status"))
+			logger.Error(err, util.LogMessage(pgw, "Failed to update status"))
 		}
 		logger.Info(fmt.Sprintf("No Prometheus instance found for %s/%s", pgw.Namespace, pgw.Name))
 	}
 
-	err = r.reconcilePushgatewayDeployment(pgw, ctx)
+	pgw.Status.Image = resources.GetImageOrDefault(pgw, r.DefaultImage)
+	r.Status().Update(ctx, pgw)
+
+	res, err := r.reconcilePushgatewayDeployment(pgw, ctx)
 
 	if err != nil {
-		return err
+		return ctrl.Result{}, err
 	}
+	logger.Info(util.LogMessage(pgw, "Successfully reconciled deployment"))
 
-	logger.Info(helpers.LogMessage(pgw, "Successfully reconciled deployment"))
+	nres, err := r.reconcilePushgatewayService(pgw, ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	logger.Info(util.LogMessage(pgw, "Successfully reconciled Service"))
+	res = util.UpdateReconcileResult(res, nres)
 
-	return nil
+	nres, err = r.reconcilePushgatewayServiceMonitor(pgw, ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	logger.Info(util.LogMessage(pgw, "Successfully reconciled ServiceMonitor"))
+	res = util.UpdateReconcileResult(res, nres)
+
+	return res, nil
 }
 
 // GetPrometheus returns a Prometheus instance for the Pushgateway.
@@ -166,30 +186,89 @@ func (r *PushgatewayReconciler) GetDefaultPrometheus(pgw *monitoringv1alpha1.Pus
 	return promList.Items[0]
 }
 
+/*
+	TODO: Make a generic reconcile function (unstructured?)
+*/
+
 // Reconcile the deployment needed for the pushgateway
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;update;create;list;patch;watch;delete
-func (r *PushgatewayReconciler) reconcilePushgatewayDeployment(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) error {
+func (r *PushgatewayReconciler) reconcilePushgatewayDeployment(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	found := &appsv1.Deployment{}
-	desired := deployment.PushgatewayDeployment(pgw, r.DefaultImage)
+	desired := resources.PushgatewayDeployment(pgw)
 
 	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
 
 	//Deployment does not exist. Create it.
 	if err != nil && k8serrors.IsNotFound(err) {
-		return r.Create(ctx, desired)
+		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
 	} else if err != nil {
-		logger.Error(err, helpers.LogMessage(pgw, "Failed to get Deployment"))
-		return err
+		logger.Error(err, util.LogMessage(pgw, "Failed to get Deployment"))
+		return ctrl.Result{}, err
 	}
 
 	// Check whether or not the deployment has been changed
 	// If it has changed, reconcile it
 	if !reflect.DeepEqual(desired.Spec, found.Spec) {
-		return r.Update(ctx, desired)
+		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
+		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
 	}
 
-	return nil
+	return ctrl.Result{}, nil
+}
+
+// Reconcile the service needed for the pushgateway
+// +kubebuilder:rbac:groups=*,resources=services,verbs=get;update;create;list;patch;watch;delete
+func (r *PushgatewayReconciler) reconcilePushgatewayService(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	found := &corev1.Service{}
+	desired := resources.PushgatewayService(pgw)
+
+	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
+
+	//Service does not exist. Create it.
+	if err != nil && k8serrors.IsNotFound(err) {
+		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
+	} else if err != nil {
+		logger.Error(err, util.LogMessage(pgw, "Failed to get Service"))
+		return ctrl.Result{}, err
+	}
+
+	// Check whether or not the service has been changed
+	// If it has changed, reconcile it
+	if !reflect.DeepEqual(desired.Spec, found.Spec) {
+		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
+		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// Reconcile the service monitor needed for the pushgateway
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;update;create;list;patch;watch;delete
+func (r *PushgatewayReconciler) reconcilePushgatewayServiceMonitor(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	found := &monitoringv1.ServiceMonitor{}
+	desired := resources.PushgatewayServiceMonitor(pgw)
+
+	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
+
+	//ServiceMonitor does not exist. Create it.
+	if err != nil && k8serrors.IsNotFound(err) {
+		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
+	} else if err != nil {
+		logger.Error(err, util.LogMessage(pgw, "Failed to get ServiceMonitor"))
+		return ctrl.Result{}, err
+	}
+
+	// Check whether or not the service has been changed
+	// If it has changed, reconcile it
+	if !reflect.DeepEqual(desired.Spec, found.Spec) {
+		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
+		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -197,5 +276,7 @@ func (r *PushgatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&monitoringv1alpha1.Pushgateway{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&monitoringv1.ServiceMonitor{}).
 		Complete(r)
 }

@@ -3,6 +3,6 @@ apiVersion: monitoring.coreos.com/v1
 metadata: 
   name: example
 spec: 
-  podMonitorSelector:
+  serviceMonitorSelector:
     matchLabels:
-      role: pod-monitor
+      role: service-monitor

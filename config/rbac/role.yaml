@@ -52,3 +52,27 @@ rules:
   - patch
   - watch
   - delete
+- apiGroups:
+  - ''
+  resources:
+  - services
+  verbs:
+  - get
+  - update
+  - create
+  - list
+  - patch
+  - watch
+  - delete
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - get
+  - update
+  - create
+  - list
+  - patch
+  - watch
+  - delete

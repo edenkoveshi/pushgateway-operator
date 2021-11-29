@@ -2,11 +2,11 @@ package constants
 
 // Naming conventions
 const (
-	ContainerName    = "pushgateway"
-	DeploymentSuffix = "-pushgateway"
-	ServiceSuffix    = "-pushgateway"
-	PodMonitorSuffix = "-pushgateway"
-	PortName         = "metrics"
+	ContainerName        = "pushgateway"
+	DeploymentSuffix     = "-pushgateway"
+	ServiceSuffix        = "-pushgateway"
+	ServiceMonitorSuffix = "-pushgateway"
+	PortName             = "web"
 )
 
 // Default values
@@ -24,6 +24,17 @@ const (
 	TelemetryPathArg   = "--web.telemetry-path="
 	LogLevelArg        = "--log.level="
 	LogFormatArg       = "--log.format="
+)
+
+// k8s resources names
+const (
+	ResourceDeployment     = "Deployment"
+	ResourceService        = "Service"
+	ResourceServiceMonitor = "ServiceMonitor"
+)
+
+const (
+	SERVICE_MONITOR_MAX_REPEAT = 100 //To avoid infinite looping
 )
 
 func PushgatewayLabels() map[string]string {

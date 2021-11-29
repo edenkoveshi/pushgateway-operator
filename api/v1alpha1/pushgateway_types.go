@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -81,6 +82,12 @@ type PushgatewaySpec struct {
 	// +optional
 	LogFormat string `json:"logFormat,omitempty"`
 
+	// Override or change some of the created Service Monitor properties
+	// Properties that cannot be overriden: Name, Port, Path, Scheme, HonorLabels and HonorTimestamps
+	// Those can be configured in the relevant fields
+	// +optional
+	ServiceMonitorOverrides *ServiceMonitorOverride `json:"serviceMonitorOverrides,omitempty"`
+
 	/*
 		TODO:
 		Add override for: metadata, deployment name, service name
@@ -100,9 +107,24 @@ type PushgatewayPrometheus struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+type ServiceMonitorOverride struct {
+	// Override the Service Monitor object metadata
+	// New metadata will be added to auto-generated metadata
+	// In case of a collision, override will take over
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1
+	// +optional
+	ObjectMeta *metav1.ObjectMeta `json:"metadataOverrides,omitempty"`
+
+	// ServiceMonitor Endpoint configuration
+	// +optional
+	Endpoint *monitoringv1.Endpoint `json:"endpointOverrides,omitempty"`
+}
+
 // PushgatewayStatus defines the observed state of Pushgateway
 type PushgatewayStatus struct {
-	Prometheus string `json:"prometheus,omitempty"`
+	Prometheus                       string                `json:"prometheus,omitempty"`
+	PrometheusServiceMonitorSelector *metav1.LabelSelector `json:"prometheusServiceMonitorSelector,omitempty"`
+	Image                            string                `json:"image,omitempty"`
 }
 
 //+kubebuilder:object:root=true
