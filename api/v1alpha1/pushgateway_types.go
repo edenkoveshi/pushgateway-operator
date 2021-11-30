@@ -35,14 +35,8 @@ type PushgatewaySpec struct {
 	// +optional
 	Prometheus *PushgatewayPrometheus `json:"prometheus,omitempty"`
 
-	// If set to true, Pushgateway will run as a sidecar container in the Prometheus instance.
-	// Otherwise runs as an independant pod. Default is false.
-	// +kubebuilder:default=false
-	// +optional
-	InjectAsSidecar bool `json:"injectAsSidecar,omitempty"`
-
-	// How many replicas of the Pushgateway to run. This applies only if InjectAsSidecar
-	// is set to false. Default is 1.
+	// How many replicas of the Pushgateway to run.
+	// Default is 1.
 	// +kubebuilder:default=1
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
@@ -95,9 +89,8 @@ type PushgatewaySpec struct {
 	*/
 }
 
-// PushgatewayPrometheus is the Prometheus instance linked to the Pushgateway. If
-// Metrics will be scraped by this Prometheus and, if chosen, Pushgateway will be
-// injected as a sidecar to this Prometheus.
+// PushgatewayPrometheus is the Prometheus instance linked to the Pushgateway, if possible
+// Metrics will be scraped by this Prometheus.
 type PushgatewayPrometheus struct {
 	// Prometheus instance name.
 	Name string `json:"name"`
@@ -113,7 +106,7 @@ type ServiceMonitorOverride struct {
 	// In case of a collision, override will take over
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1
 	// +optional
-	ObjectMeta *metav1.ObjectMeta `json:"metadataOverrides,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 
 	// ServiceMonitor Endpoint configuration
 	// +optional

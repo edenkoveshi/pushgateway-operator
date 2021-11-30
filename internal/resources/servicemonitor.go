@@ -44,9 +44,7 @@ func PushgatewayServiceMonitor(pgw *monitoringv1alpha1.Pushgateway) *monitoringv
 	endpoint := &monitoringv1.Endpoint{}
 
 	if override := pgw.Spec.ServiceMonitorOverrides; override != nil {
-		if override.ObjectMeta != nil {
-			util.MergeMetadata(&metadata, *override.ObjectMeta)
-		}
+		metadata.Labels = util.MergeLabels(labels, override.Labels)
 
 		if override.Endpoint != nil {
 			endpoint = override.Endpoint

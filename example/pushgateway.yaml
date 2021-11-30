@@ -7,10 +7,8 @@ spec:
     name: example
   replicas: 1
   serviceMonitorOverrides:
-    metadataOverrides: 
-      name: no-override
-      labels:
-        override: "true"
+    labels:
+      override: "true"
     endpointOverrides:
       honorLabels: false #not overriden
       honorTimestamps: false #not overriden

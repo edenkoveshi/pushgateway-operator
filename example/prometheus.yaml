@@ -8,3 +8,4 @@ spec:
       propogated: "true"
     matchExpressions:
       - {key: tier, operator: In, values: [cache]}
+  serviceAccountName: prometheus

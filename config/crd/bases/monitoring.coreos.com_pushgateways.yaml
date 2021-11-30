@@ -57,12 +57,6 @@ spec:
                 description: Image to use for the Pushgateway. If omitted, default
                   image defined in the operator environment variable pushgateway-default-base-image
                 type: string
-              injectAsSidecar:
-                default: false
-                description: If set to true, Pushgateway will run as a sidecar container
-                  in the Prometheus instance. Otherwise runs as an independant pod.
-                  Default is false.
-                type: boolean
               logFormat:
                 description: Sets the log format for the exporter. Must be either
                   logfmt or json Default is logfmt
@@ -100,8 +94,8 @@ spec:
                 type: object
               replicas:
                 default: 1
-                description: How many replicas of the Pushgateway to run. This applies
-                  only if InjectAsSidecar is set to false. Default is 1.
+                description: How many replicas of the Pushgateway to run. Default
+                  is 1.
                 format: int32
                 type: integer
               serviceMonitorOverrides:
@@ -569,7 +563,9 @@ spec:
                             type: string
                         type: object
                     type: object
-                  metadataOverrides:
+                  labels:
+                    additionalProperties:
+                      type: string
                     description: Override the Service Monitor object metadata New
                       metadata will be added to auto-generated metadata In case of
                       a collision, override will take over
