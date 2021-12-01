@@ -18,13 +18,10 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"reflect"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -126,151 +123,6 @@ func (r *PushgatewayReconciler) ReconcilePushgateway(pgw *monitoringv1alpha1.Pus
 	return res, nil
 }
 
-// GetPrometheus returns a Prometheus instance for the Pushgateway.
-// If Spec.Prometheus is set, the instance will be looked according to
-// to it. Otherwise, default Prometheus is returned.
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;list
-func (r *PushgatewayReconciler) GetPrometheus(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (*monitoringv1.Prometheus, error) {
-	if pgw.Spec.Prometheus == nil {
-		// Default Prometheus will not return an error
-		// Worst case scenario is its' not found and no Prometheus instance is set
-		// manager can still continue
-		return r.GetDefaultPrometheus(pgw, ctx), nil
-	}
-
-	if pgw.Spec.Prometheus.Name == "" {
-		errmsg := fmt.Sprintf("instance %s/%s,Prometheus name cannot be empty", pgw.Namespace, pgw.Name)
-		return nil, errors.New(errmsg)
-	}
-
-	prometheus := &monitoringv1.Prometheus{}
-	prometheusName := pgw.Spec.Prometheus.Name
-	prometheusNamespace := pgw.Namespace
-	if pgw.Spec.Prometheus.Namespace != "" {
-		prometheusNamespace = pgw.Spec.Prometheus.Namespace
-	}
-
-	err := r.Get(ctx, types.NamespacedName{Name: prometheusName, Namespace: prometheusNamespace}, prometheus)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return prometheus, nil
-}
-
-// GetDefaultPrometheus returns the default prometheus in the current namespace
-// of the Pushgateway. If more than one exists, it fails.
-func (r *PushgatewayReconciler) GetDefaultPrometheus(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) *monitoringv1.Prometheus {
-	logger := log.FromContext(ctx)
-	promList := &monitoringv1.PrometheusList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(pgw.Namespace),
-	}
-
-	if err := r.List(ctx, promList, listOpts...); err != nil {
-		logger.Error(err, "Failed to list Prometheus", "Pushgateway.Namespace", pgw.Namespace, "Pushgateway.Name", pgw.Name)
-		return nil
-	}
-
-	if len(promList.Items) == 0 {
-		logger.Error(nil, "configuration invalid: No Prometheuses found in namespace", "Pushgateway.Namespace", pgw.Namespace, "Pushgateway.Name", pgw.Name)
-		return nil
-	}
-
-	if len(promList.Items) > 1 {
-		logger.Error(nil, "configuration invalid: More than one Prometheus exists in namespace", "Pushgateway.Namespace", pgw.Namespace, "Pushgateway.Name", pgw.Name)
-		return nil
-	}
-
-	return promList.Items[0]
-}
-
-/*
-	TODO: Make a generic reconcile function (unstructured?)
-*/
-
-// Reconcile the deployment needed for the pushgateway
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;update;create;list;patch;watch;delete
-func (r *PushgatewayReconciler) reconcilePushgatewayDeployment(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	found := &appsv1.Deployment{}
-	desired := resources.PushgatewayDeployment(pgw)
-
-	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
-
-	//Deployment does not exist. Create it.
-	if err != nil && k8serrors.IsNotFound(err) {
-		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
-	} else if err != nil {
-		logger.Error(err, util.LogMessage(pgw, "Failed to get Deployment"))
-		return ctrl.Result{}, err
-	}
-
-	// Check whether or not the deployment has been changed
-	// If it has changed, reconcile it
-	if !reflect.DeepEqual(desired.Spec, found.Spec) {
-		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
-		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
-	}
-
-	return ctrl.Result{}, nil
-}
-
-// Reconcile the service needed for the pushgateway
-// +kubebuilder:rbac:groups=*,resources=services,verbs=get;update;create;list;patch;watch;delete
-func (r *PushgatewayReconciler) reconcilePushgatewayService(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	found := &corev1.Service{}
-	desired := resources.PushgatewayService(pgw)
-
-	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
-
-	//Service does not exist. Create it.
-	if err != nil && k8serrors.IsNotFound(err) {
-		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
-	} else if err != nil {
-		logger.Error(err, util.LogMessage(pgw, "Failed to get Service"))
-		return ctrl.Result{}, err
-	}
-
-	// Check whether or not the service has been changed
-	// If it has changed, reconcile it
-	if !reflect.DeepEqual(desired.Spec, found.Spec) {
-		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
-		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
-	}
-
-	return ctrl.Result{}, nil
-}
-
-// Reconcile the service monitor needed for the pushgateway
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;update;create;list;patch;watch;delete
-func (r *PushgatewayReconciler) reconcilePushgatewayServiceMonitor(pgw *monitoringv1alpha1.Pushgateway, ctx context.Context) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	found := &monitoringv1.ServiceMonitor{}
-	desired := resources.PushgatewayServiceMonitor(pgw)
-
-	err := r.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: pgw.Namespace}, found)
-
-	//ServiceMonitor does not exist. Create it.
-	if err != nil && k8serrors.IsNotFound(err) {
-		return ctrl.Result{Requeue: true}, r.Create(ctx, desired)
-	} else if err != nil {
-		logger.Error(err, util.LogMessage(pgw, "Failed to get ServiceMonitor"))
-		return ctrl.Result{}, err
-	}
-
-	// Check whether or not the service has been changed
-	// If it has changed, reconcile it
-	if !reflect.DeepEqual(desired.Spec, found.Spec) {
-		util.MergeMetadata(&desired.ObjectMeta, found.ObjectMeta)
-		return ctrl.Result{Requeue: true}, r.Update(ctx, desired)
-	}
-
-	return ctrl.Result{}, nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *PushgatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -279,5 +131,6 @@ func (r *PushgatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&monitoringv1.ServiceMonitor{}).
 		//Watches(&source.Kind{Type: &monitoringv1.Prometheuses{}}, handler.EnqueueRequestsFromMapFunc(r.watchPrometheuses)).
+		//Watches(&source.Kind{Type: &batchv1.Job{}}, r.watchJobs).
 		Complete(r)
 }

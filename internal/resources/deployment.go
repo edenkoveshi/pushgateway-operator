@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func DeploymentName(name string) string {
-	return fmt.Sprintf("%s%s", name, constants.DeploymentSuffix)
+func DeploymentName(pgw *monitoringv1alpha1.Pushgateway) string {
+	return fmt.Sprintf("%s%s", pgw.Name, constants.DeploymentSuffix)
 }
 
 // Creates a deployment for the Pushgateway
@@ -28,7 +28,7 @@ func PushgatewayDeployment(pgw *monitoringv1alpha1.Pushgateway) *appsv1.Deployme
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            DeploymentName(pgw.Name),
+			Name:            DeploymentName(pgw),
 			Namespace:       pgw.Namespace,
 			Labels:          labels,
 			OwnerReferences: SetOwnerReference(pgw),

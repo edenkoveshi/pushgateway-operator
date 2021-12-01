@@ -35,6 +35,7 @@ import (
 	monitoringv1alpha1 "github.com/prometheus-operator/pushgateway-operator/api/v1alpha1"
 	"github.com/prometheus-operator/pushgateway-operator/controllers"
 	"github.com/prometheus-operator/pushgateway-operator/internal/constants"
+	batchv1 "k8s.io/api/batch/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -88,12 +89,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = batchv1.AddToScheme(mgr.GetScheme()); err != nil {
+		setupLog.Error(err, "unable to setup Jobs in scheme", "controller", "Jobs")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.PushgatewayReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		DefaultImage: pushgatewayDefaultImage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pushgateway")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.JobReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Job")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

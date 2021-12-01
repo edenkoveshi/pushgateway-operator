@@ -10,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func ServiceName(name string) string {
-	return fmt.Sprintf("%s%s", name, constants.ServiceSuffix)
+func ServiceName(pgw *monitoringv1alpha1.Pushgateway) string {
+	return fmt.Sprintf("%s%s", pgw.Name, constants.ServiceSuffix)
 }
 
 func PushgatewayService(pgw *monitoringv1alpha1.Pushgateway) *corev1.Service {
@@ -19,7 +19,7 @@ func PushgatewayService(pgw *monitoringv1alpha1.Pushgateway) *corev1.Service {
 	labels := PushgatewayLabels(pgw)
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            ServiceName(pgw.Name),
+			Name:            ServiceName(pgw),
 			Namespace:       pgw.Namespace,
 			Labels:          labels,
 			OwnerReferences: SetOwnerReference(pgw),

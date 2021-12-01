@@ -76,3 +76,15 @@ rules:
   - patch
   - watch
   - delete
+- apiGroups:
+  - 'batch'
+  resources:
+  - jobs
+  verbs:
+  - get
+  - update
+  - list
+  - patch
+  - watch
+  - create
+  - delete

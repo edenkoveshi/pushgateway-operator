@@ -34,7 +34,14 @@ const (
 )
 
 const (
-	SERVICE_MONITOR_MAX_REPEAT = 100 //To avoid infinite looping
+	SERVICE_MONITOR_MAX_REPEAT   = 100 //To avoid infinite looping
+	JOB_WAIT_TIME_SECONDS        = 10  // Wait for 10 seconds before trying to create Job again
+	JOB_CREATION_TIMEOUT_SECONDS = 6   // Timeout after 1 min
+)
+
+const (
+	PushgatewayEnvVar    = "PUSHGATEWAY"
+	PushgatewayLabelName = "inject-pushgateway"
 )
 
 func PushgatewayLabels() map[string]string {
